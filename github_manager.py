@@ -1,3 +1,7 @@
+"""
+A Manager utilizing the GITHUB API with the objective 
+to link Organizational Projects to Issues and capture the *project state (column)* of the issues.
+"""
 import os
 import logging
 import concurrent.futures
