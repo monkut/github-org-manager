@@ -64,14 +64,15 @@ class GithubOrganizationProject:
             response = self._session.get(url)
             assert response.status_code == 200
             issue = response.json()
-            processed_issue = []
-            processed_issue.append(issue['number'])
-            processed_issue.append(issue['id'])
-            processed_issue.append(issue['title'])
-            processed_issue.append(issue['state'])
-            processed_issue.append(column_name)
-            processed_issue.append(issue['html_url'])  # link
-            processed_issue.append(issue['milestone'])
+            processed_issue = [
+                issue['number'],
+                issue['id'],
+                issue['title'],
+                issue['state'],
+                column_name,
+                issue['html_url'],  # link
+                issue['milestone']
+            ]
 
             # parse labels
             labels = [d['name'] for d in issue['labels']]
