@@ -153,13 +153,16 @@ class GithubOrganizationProject:
         return response.json()
 
 
-class GithubProjectManager:
+class GithubOrganizationProjectManager:
+    """
+    Functions/Tools for managing Github Organization Projects
+    """
 
-    def __init__(self, oauth_token, org=None, repositories=None):
+    def __init__(self, oauth_token, org=None, projects=None):
         """
         :param oauth_token: GITHUB OAUTH TOKEN
         :param org: GITHUB ORGANIZATION NAME
-        :param repositories: (list) repository names to filter
+        :param projects: (list) project names to filter
         """
         self._oauth_token = oauth_token
         self._session = requests.session()
@@ -174,40 +177,10 @@ class GithubProjectManager:
         self._session.mount('https://', adapter)
 
         self.org = org
-        self.repositories = repositories
+        self.project_names_filter = projects
 
     @lru_cache(maxsize=1)
-    def repositories(self):
-        assert self.org  # At the moment only support ORG queries
-        url = '{root}orgs/{org}/repos'.format(root=GITHUB_API_URL,
-                                              org=self.org)
-        response = self._session.get(url)
-        assert response.status_code == 200
-
-        repos = []
-        for idx, repo in enumerate(response.json()):
-            name_keys = ('full_name', 'name')
-            if any(repo[k] in self.repositories for k in name_keys):
-                repos.append(repo)
-        return repos
-
-    def issues(self):
-        """
-        Return all issues for given repositories
-        :return: (list) issues
-        """
-        for repo in self.repositories():
-            url = repo['issues_url']
-            response = self._session.get(url)  # TODO: does not support pagination
-            assert response.status_code == 200
-            yield from response.json()
-
-    @lru_cache(maxsize=1)
-    def _key_issues_by_id(self):
-        return {i['id']: i for i in self.issues()}
-
-    @lru_cache(maxsize=1)
-    def organization_projects(self):
+    def projects(self):
         """        
         :return: list of organization project objects 
         """
@@ -216,7 +189,15 @@ class GithubProjectManager:
         response = self._session.get(url)
         assert response.status_code == 200
         projects_data = response.json()
-        return (GithubOrganizationProject(self._session, p) for p in projects_data)
+
+        # Create generator for project data
+        if not self.project_names_filter:
+            yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
+        else:
+            for p in projects_data:
+                project = GithubOrganizationProject(self._session, p)
+                if project.name in self.project_names_filter:
+                    yield project
 
 
 if __name__ == '__main__':
@@ -228,10 +209,10 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--organization',
                         default='abeja-inc',
                         help='Github Organization Name')
-    parser.add_argument('-r', '--repositories',
+    parser.add_argument('-p', '--projects',
                         nargs='+',
                         default=None,
-                        help='Repository Name Filter [DEFAULT=None]')
+                        help='Project Name Filter(s) [DEFAULT=None]')
     parser.add_argument('--verbose',
                         action='store_true',
                         default=False,
@@ -240,11 +221,10 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    manager = GithubProjectManager(args.token,
-                                   args.organization,
-                                   args.repositories)
-    for project in manager.organization_projects():
-        print(project.name)
+    manager = GithubOrganizationProjectManager(args.token,
+                                               args.organization,
+                                               args.projects)
+    for project in manager.projects():
         for issue in project.issues():
             print(issue)
 
