@@ -1,5 +1,5 @@
 """
-A Manager utilizing the GITHUB API with the objective 
+A Manager utilizing the GITHUB API with the objective
 to link Organizational Projects to Issues and capture the *project state (column)* of the issues.
 """
 import os
@@ -19,9 +19,9 @@ GITHUB_API_URL = 'https://api.github.com/'
 
 def get_created_datetime(item):
     """
-    Key function for sorting comments by creation date 
-    :param item: 
-    :return: 
+    Key function for sorting comments by creation date
+    :param item:
+    :return:
     """
     return parse(item['created_at'])
 
