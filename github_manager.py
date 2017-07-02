@@ -27,6 +27,10 @@ def get_created_datetime(item):
 
 
 class GithubOrganizationProject:
+    """
+    Wraps an individual Github Organization Project found in the response:
+    https://developer.github.com/v3/projects/#list-organization-projects
+    """
 
     def __init__(self, session, data):
         self._session = session
@@ -36,13 +40,21 @@ class GithubOrganizationProject:
     def name(self):
         return self._data['name']
 
+    @property
+    def html_url(self):
+        return self._data['html_url']
+
+    @property
+    def url(self):
+        return self._data['url']
+
     def issues(self):
         def process_issue(url, column_name=None):
             """
             Retrieve data from the given ISSUE URL and internal COMMENTS URL and return a list of key desired values
-            :param url: (str) GITHUB issue url 
+            :param url: (str) GITHUB issue url
             :param column_name: (str) Project Column Name that the issue belongs to
-            :return: (list) 
+            :return: (list)
                 [
                     ISSUE_NUMBER, (int)
                     ISSUE_ID, (int)
@@ -158,7 +170,7 @@ class GithubOrganizationProjectManager:
     Functions/Tools for managing Github Organization Projects
     """
 
-    def __init__(self, oauth_token, org=None, projects=None):
+    def __init__(self, oauth_token, org=None):
         """
         :param oauth_token: GITHUB OAUTH TOKEN
         :param org: GITHUB ORGANIZATION NAME
@@ -177,12 +189,11 @@ class GithubOrganizationProjectManager:
         self._session.mount('https://', adapter)
 
         self.org = org
-        self.project_names_filter = projects
 
     @lru_cache(maxsize=1)
     def projects(self):
-        """        
-        :return: list of organization project objects 
+        """
+        :return: list of organization project objects
         """
         url = '{root}orgs/{org}/projects'.format(root=GITHUB_API_URL,
                                                  org=self.org)
@@ -191,13 +202,7 @@ class GithubOrganizationProjectManager:
         projects_data = response.json()
 
         # Create generator for project data
-        if not self.project_names_filter:
-            yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
-        else:
-            for p in projects_data:
-                project = GithubOrganizationProject(self._session, p)
-                if project.name in self.project_names_filter:
-                    yield project
+        yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
 
 
 if __name__ == '__main__':
@@ -222,9 +227,9 @@ if __name__ == '__main__':
         logger.setLevel(logging.DEBUG)
 
     manager = GithubOrganizationProjectManager(args.token,
-                                               args.organization,
-                                               args.projects)
+                                               args.organization)
     for project in manager.projects():
-        for issue in project.issues():
-            print(issue)
+        if project.name in args.projects:
+            for issue in project.issues():
+                print(issue)
 
