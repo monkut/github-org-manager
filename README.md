@@ -4,17 +4,17 @@ This project is intended to provide tools to make it easier to discover the curr
 
 ## Usage
 
-The main interface is through the `GithubOrganizationProjectManager` class.
+The main interface is through the `ghorgs.managers.GithubOrganizationProjectManager` class.
 This class allows you to obtain all the projects assigned to a given organization, with the option to filter projects based on the project name.
 
 
 Example:
 ```
+from ghorgs.managers import GithubOrganizationProjectManager
 ORGANIZATION = 'my orgnaization'
 PROJECT_NAMES_FILTER = ['My Org Project Name']
 manager = GithubOrganizationProjectManager(github_oauth_token,
-                                           ORGANIZATION,
-                                           PROJECT_NAMES_FILTER)
+                                           ORGANIZATION)
 for project in manager.projects():
     for issue in project.issues():
 ```
