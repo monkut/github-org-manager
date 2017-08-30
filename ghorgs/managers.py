@@ -39,7 +39,48 @@ class BaseJsonClass:
 
 
 class GithubIssue(BaseJsonClass):
-    pass
+
+    def _process_referenced_issues(self, raw):
+        """
+        Github referenced issues take the following formats:
+            '#N' -- Where issue is in the same repository as current issue
+            'OWNER/REPO#N'
+        :param raw:
+        :return:
+        """
+        repo, issue_id = raw.split('#')
+        number = None
+        if not repo:
+            # same repo as current this issue
+            for issue in self._project_manager.issues():
+                if issue.id == issue_id:
+                    number = issue.number
+                    break
+        else:
+            raise NotImplementedError('Cross Repository Dependencies not yet supported')
+        return number
+
+    def depends_on(self):
+        """
+        Parse the Github issue body and retrieve the issue the issue depends on
+        Dependencies are defined by starting a line with one of the following:
+            - 'depends-on:'
+            - 'dp:'
+            - 'dependson:'
+
+        :return: (list) [ISSUE_NUMBER, ISSUE_NUMBER, ...]
+        """
+        numbers = []
+        for line in body.split('\r\n'):
+            clean_line = line.strip().lower()
+            if clean_line.startswith(('depends-on:', 'dp:', 'dependson:')):
+                _, raw_numbers = clean_line.split(':')
+
+                # process links
+                for item in raw_numbers.split(','):
+                    issue_number = self._process_referenced_issues(item.strip())
+                    numbers.append(issue_number)
+        return numbers
 
 
 DEFAULT_LABEL_COLOR = 'f29513'
@@ -86,7 +127,7 @@ class GithubOrganizationProject:
         return self._data['url']
 
     def issues(self):
-        def process_issue(url, column_name=None):
+        def process_issue(url, column_name=None, position=None):
             """
             Retrieve data from the given ISSUE URL and internal COMMENTS URL and return a list of key desired values
             :param url: (str) GITHUB issue url
@@ -108,11 +149,14 @@ class GithubOrganizationProject:
                     LATEST_COMMENT_CREATED_AT, (datetime)
                     LATEST_COMMENT_CREATED_BY, (str)
                     LATEST_COMMENT_BODY, (str)
+                    CARD_POSITION_IN_COLUMN, (int)
+                    ISSUE_DESCRIPTION, (str)
                 ]
             """
             response = self._session.get(url)
             assert response.status_code == 200
             issue = json.loads(response.text, object_hook=GithubIssue.from_dict)
+            issue._project = self
             processed_issue = [
                 issue.number,
                 issue.id,
@@ -160,7 +204,14 @@ class GithubOrganizationProject:
             processed_issue.append(latest_comment_created_by)
             processed_issue.append(latest_comment_body)
 
-            return processed_issue
+            # add position in order to get card priority in column
+            processed_issue.append(position)
+
+            # add description
+            processed_issue.append(issue.body)
+            issue.simple = processed_issue
+
+            return issue
 
         # prepare and process cards (issues)
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -174,11 +225,12 @@ class GithubOrganizationProject:
                 cards_response = self._session.get(cards_url)
                 assert cards_response.status_code == 200
                 cards_data = cards_response.json()
-                for card in cards_data:
+                for position, card in enumerate(cards_data):
                     if 'content_url' in card and 'issue' in card['content_url']:
                         job = executor.submit(process_issue,
                                               card['content_url'],
-                                              column_name)
+                                              column_name,
+                                              position)
                         jobs.append(job)
 
             # process results
@@ -250,7 +302,7 @@ class GithubOrganizationManager:
             return repository
 
         if name:
-            # https://api.github.com/repos/abeja-inc/platform-release-planning
+            # https://api.github.com/repos/OWNER/REPOSITORY
             url = '{root}repos/{org}/{name}'.format(root=GITHUB_API_URL,
                                                     org=self.org,
                                                     name=name)
@@ -299,5 +351,5 @@ if __name__ == '__main__':
     for project in manager.projects():
         if project.name in args.projects:
             for issue in project.issues():
-                print(issue)
+                print(issue.simple)
 
