@@ -3,6 +3,7 @@ A Manager utilizing the GITHUB API with the objective
 to link Organizational Projects to Issues and capture the *project state (column)* of the issues.
 """
 import os
+import json
 import logging
 import concurrent.futures
 from functools import lru_cache
@@ -26,6 +27,38 @@ def get_created_datetime(item):
     return parse(item['created_at'])
 
 
+class BaseJsonClass:
+
+    @classmethod
+    def from_dict(cls, d):
+        # can be used with json.loads() to load directly to a class
+        # github_issue = json.loads(data, object_hook=GithubIssue.from_dict)
+        obj = cls()
+        obj.__dict__.update(d)
+        return obj
+
+
+class GithubIssue(BaseJsonClass):
+    pass
+
+
+DEFAULT_LABEL_COLOR = 'f29513'
+
+
+class GithubRepository(BaseJsonClass):
+    _session = None
+
+    def create_label(self, name, color=DEFAULT_LABEL_COLOR):
+        assert self._session
+        label = {
+            'name': name,
+            'color': color,
+        }
+        normalized_url, _ = self.labels_url.split('{')
+        response = self._session.post(normalized_url, json=label)
+        return response.status_code, response.json()
+
+
 class GithubOrganizationProject:
     """
     Wraps an individual Github Organization Project found in the response:
@@ -35,6 +68,10 @@ class GithubOrganizationProject:
     def __init__(self, session, data):
         self._session = session
         self._data = data
+        self._raw_issues = []
+
+    def __repr__(self):
+        return '{}({})'.format(self.__class__.__name__, self.name)
 
     @property
     def name(self):
@@ -75,43 +112,43 @@ class GithubOrganizationProject:
             """
             response = self._session.get(url)
             assert response.status_code == 200
-            issue = response.json()
+            issue = json.loads(response.text, object_hook=GithubIssue.from_dict)
             processed_issue = [
-                issue['number'],
-                issue['id'],
-                issue['title'],
-                issue['state'],
+                issue.number,
+                issue.id,
+                issue.title,
+                issue.state,
                 column_name,
-                issue['html_url'],  # link
-                issue['milestone']
+                issue.html_url,  # link
+                issue.milestone
             ]
 
             # parse labels
-            labels = [d['name'] for d in issue['labels']]
+            labels = [d.name for d in issue.labels]
             processed_issue.append(labels)
 
             # add creator
-            created_by = issue['user']['login']
+            created_by = issue.user.login
             processed_issue.append(created_by)
 
             # add assignee
             assignee = None
-            if issue['assignee']:
-                assignee = issue['assignee']['login']
+            if issue.assignee:
+                assignee = issue.assignee.login
             processed_issue.append(assignee)
 
             # created_datetime
-            processed_issue.append(parse(issue['created_at']))
+            processed_issue.append(parse(issue.created_at))
 
             # updated_datetime
-            processed_issue.append(parse(issue['updated_at']))
+            processed_issue.append(parse(issue.updated_at))
 
             latest_comment_body = None
             latest_comment_created_at = None
             latest_comment_created_by = None
-            if issue['comments']:  # defines number of comments
+            if issue.comments:  # defines number of comments
                 # get last comment info
-                comments_url = issue['comments_url']
+                comments_url = issue.comments_url
                 response = self._session.get(comments_url)
                 assert response.status_code == 200
                 comments_data = response.json()
@@ -165,7 +202,7 @@ class GithubOrganizationProject:
         return response.json()
 
 
-class GithubOrganizationProjectManager:
+class GithubOrganizationManager:
     """
     Functions/Tools for managing Github Organization Projects
     """
@@ -204,6 +241,36 @@ class GithubOrganizationProjectManager:
         # Create generator for project data
         yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
 
+    @lru_cache(maxsize=1)
+    def repositories(self, name=None):
+        def classify(d):
+            repo_json = json.dumps(d)
+            repository = json.loads(repo_json, object_hook=GithubRepository.from_dict)
+            repository._session = self._session  # attach session
+            return repository
+
+        if name:
+            # https://api.github.com/repos/abeja-inc/platform-release-planning
+            url = '{root}repos/{org}/{name}'.format(root=GITHUB_API_URL,
+                                                    org=self.org,
+                                                    name=name)
+            response = self._session.get(url)
+            if response.status_code != 200:
+                raise Exception('{}: {}'.format(url, response.status_code))
+            repository = classify(response.json())
+            yield repository
+
+        else:
+            url = '{root}orgs/{org}/repos'.format(root=GITHUB_API_URL,
+                                                  org=self.org)
+            response = self._session.get(url)
+            assert response.status_code == 200
+            data = response.json()
+            for repo in data:
+                # dumping to load to class object
+                respository = classify(repo)
+                yield respository
+
 
 if __name__ == '__main__':
     import argparse
@@ -217,6 +284,7 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--projects',
                         nargs='+',
                         default=None,
+                        required=True,
                         help='Project Name Filter(s) [DEFAULT=None]')
     parser.add_argument('--verbose',
                         action='store_true',
@@ -226,8 +294,8 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    manager = GithubOrganizationProjectManager(args.token,
-                                               args.organization)
+    manager = GithubOrganizationManager(args.token,
+                                        args.organization)
     for project in manager.projects():
         if project.name in args.projects:
             for issue in project.issues():
