@@ -31,8 +31,13 @@ class BaseJsonClass:
 
     @classmethod
     def from_dict(cls, d):
-        # can be used with json.loads() to load directly to a class
-        # github_issue = json.loads(data, object_hook=GithubIssue.from_dict)
+        """
+        Method to be used with json.loads() to load directly to a class
+        Example:
+            object = json.loads(data, object_hook=BaseJsonClass.from_dict)
+        :param d:
+        :return:
+        """
         obj = cls()
         obj.__dict__.update(d)
         return obj
@@ -293,12 +298,17 @@ class GithubOrganizationManager:
         # Create generator for project data
         yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
 
-    @lru_cache(maxsize=1)
+    @lru_cache(maxsize=10)
     def repositories(self, name=None):
-        def classify(d):
-            repo_json = json.dumps(d)
-            repository = json.loads(repo_json, object_hook=GithubRepository.from_dict)
-            repository._session = self._session  # attach session
+        def classify(repository_dict):
+            """
+            Load Github repository API dictionary representation to an internally defined GitRepository Object
+            :param repository_dict: (dict) github Repository dictionary Representation
+            :return: (obj) GithubRepository
+            """
+            repoository_json = json.dumps(repository_dict)
+            repository = json.loads(repoository_json, object_hook=GithubRepository.from_dict)
+            repository._session = self._session  # attach session so queries can be made
             return repository
 
         if name:
