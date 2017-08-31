@@ -44,6 +44,8 @@ class BaseJsonClass:
 
 
 class GithubIssue(BaseJsonClass):
+    project_column = None
+    column_priority = None  # added from connected Github Project
 
     def _process_referenced_issues(self, raw):
         """
@@ -211,6 +213,8 @@ class GithubOrganizationProject:
 
             # add position in order to get card priority in column
             processed_issue.append(position)
+            issue.column_priority = position  # issue priority within the column
+            issue.project_column = column_name  # related project column name
 
             # add description
             processed_issue.append(issue.body)
