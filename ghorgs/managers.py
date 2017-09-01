@@ -44,6 +44,7 @@ class BaseJsonClass:
 
 
 class GithubIssue(BaseJsonClass):
+    _project_manager = None
     project_column = None
     column_priority = None  # added from connected Github Project
 
@@ -225,6 +226,7 @@ class GithubOrganizationProject:
             # add description
             processed_issue.append(issue.body)
             issue.simple = processed_issue
+            issue._project_manager = self  # attach so that project can be queiried from within the Issue object
 
             return issue
 
