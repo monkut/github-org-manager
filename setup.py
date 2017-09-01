@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ghorgs',
-    version='0.1.2',
+    version='0.1.3',
     packages=['ghorgs'],
     url='https://github.com/monkut/github-org-manager',
     install_requires=['requests'],

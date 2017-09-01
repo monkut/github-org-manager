@@ -56,17 +56,17 @@ class GithubIssue(BaseJsonClass):
         :param raw:
         :return:
         """
-        repo, issue_id = raw.split('#')
-        number = None
+        repo, issue_number = raw.split('#')
+        confirmed_issue_id = None
         if not repo:
             # same repo as current this issue
             for issue in self._project_manager.issues():
-                if issue.id == issue_id:
-                    number = issue.number
+                if issue.number == issue_number:
+                    confirmed_issue_id = issue.id
                     break
         else:
             raise NotImplementedError('Cross Repository Dependencies not yet supported')
-        return number
+        return confirmed_issue_id
 
     @property
     def depends_on(self):
@@ -79,7 +79,7 @@ class GithubIssue(BaseJsonClass):
 
         :return: (list) [ISSUE_NUMBER, ISSUE_NUMBER, ...]
         """
-        numbers = []
+        ids = []
         for line in self.body.split('\r\n'):
             clean_line = line.strip().lower()
             if clean_line.startswith(('depends-on:', 'dp:', 'dependson:')):
@@ -87,9 +87,10 @@ class GithubIssue(BaseJsonClass):
 
                 # process links
                 for item in raw_numbers.split(','):
-                    issue_number = self._process_referenced_issues(item.strip())
-                    numbers.append(issue_number)
-        return numbers
+                    confirmed_issue_id = self._process_referenced_issues(item.strip())
+                    if confirmed_issue_id:
+                        ids.append(confirmed_issue_id)
+        return ids
 
 
 DEFAULT_LABEL_COLOR = 'f29513'
