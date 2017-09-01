@@ -67,6 +67,7 @@ class GithubIssue(BaseJsonClass):
             raise NotImplementedError('Cross Repository Dependencies not yet supported')
         return number
 
+    @property
     def depends_on(self):
         """
         Parse the Github issue body and retrieve the issue the issue depends on
@@ -78,7 +79,7 @@ class GithubIssue(BaseJsonClass):
         :return: (list) [ISSUE_NUMBER, ISSUE_NUMBER, ...]
         """
         numbers = []
-        for line in body.split('\r\n'):
+        for line in self.body.split('\r\n'):
             clean_line = line.strip().lower()
             if clean_line.startswith(('depends-on:', 'dp:', 'dependson:')):
                 _, raw_numbers = clean_line.split(':')
