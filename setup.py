@@ -5,7 +5,7 @@ setup(
     version='0.1.0',
     packages=['ghorgs'],
     url='https://github.com/monkut/github-org-manager',
-    install_requirements=['requests'],
+    install_requires=['requests'],
     license='MIT',
     author='Shane Cousins',
     author_email='shane.cousins@gmail.com',
