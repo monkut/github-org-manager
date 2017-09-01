@@ -56,7 +56,8 @@ class GithubIssue(BaseJsonClass):
         :param raw:
         :return:
         """
-        repo, issue_number = raw.split('#')
+        repo, issue_number_str = raw.split('#')
+        issue_number = int(issue_number_str)
         confirmed_issue_id = None
         if not repo:
             # same repo as current this issue
@@ -80,7 +81,7 @@ class GithubIssue(BaseJsonClass):
         :return: (list) [ISSUE_NUMBER, ISSUE_NUMBER, ...]
         """
         ids = []
-        for line in self.body.split('\r\n'):
+        for line in self.body.split('\n'):
             clean_line = line.strip().lower()
             if clean_line.startswith(('depends-on:', 'dp:', 'dependson:')):
                 _, raw_numbers = clean_line.split(':')
