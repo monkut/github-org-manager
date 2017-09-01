@@ -96,6 +96,11 @@ DEFAULT_LABEL_COLOR = 'f29513'
 class GithubRepository(BaseJsonClass):
     _session = None
 
+    @property
+    def milestones(self):
+        normalized_url, _ = self.milestones_url.split('{')
+        return self._session.get(normalized_url).json()
+
     def create_label(self, name, color=DEFAULT_LABEL_COLOR):
         assert self._session
         label = {
@@ -296,7 +301,8 @@ class GithubOrganizationManager:
         url = '{root}orgs/{org}/projects'.format(root=GITHUB_API_URL,
                                                  org=self.org)
         response = self._session.get(url)
-        assert response.status_code == 200
+        if response.status_code != 200:
+            raise Exception(f'[{response.status_code}] {response.text}')
         projects_data = response.json()
 
         # Create generator for project data
