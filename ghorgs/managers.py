@@ -212,7 +212,12 @@ class GithubOrganizationProject:
                 comments_url = issue.comments_url
                 response = self._session.get(comments_url)
                 if response.status_code != 200:
-                    raise Exception(f'[{response.status_code}] {response.text}')
+                    retry_after_raw = response.headers.get('Retry-After', None)
+                    if retry_after_raw:
+                        print('Hit Rate Limit, will retry after: {}s'.format(retry_after_raw))
+                        sleep(int(retry_after_raw))
+                    else:
+                        raise Exception(f'[{response.status_code}] {response.text}')
                 comments_data = response.json()
                 latest_comment = sorted(comments_data, key=get_created_datetime)[-1]
                 latest_comment_body = latest_comment['body']
@@ -248,7 +253,12 @@ class GithubOrganizationProject:
                 while next_url:
                     cards_response = self._session.get(next_url)
                     if cards_response.status_code != 200:
-                        raise Exception(f'[{cards_response.status_code}] {cards_response.text}')
+                        retry_after_raw = response.headers.get('Retry-After', None)
+                        if retry_after_raw:
+                            print('Hit Rate Limit, will retry after: {}s'.format(retry_after_raw))
+                            sleep(int(retry_after_raw))
+                        else:
+                            raise Exception(f'[{cards_response.status_code}] {cards_response.text}')
                     cards_data = cards_response.json()
 
                     for position, card in enumerate(cards_data, index_start):
