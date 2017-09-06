@@ -170,7 +170,8 @@ class GithubOrganizationProject:
                 ]
             """
             response = self._session.get(url)
-            assert response.status_code == 200
+            if response.status_code != 200:
+                raise Exception(f'[{response.status_code}] {response.text}')
             issue = json.loads(response.text, object_hook=GithubIssue.from_dict)
             issue._project = self
             processed_issue = [
@@ -210,7 +211,8 @@ class GithubOrganizationProject:
                 # get last comment info
                 comments_url = issue.comments_url
                 response = self._session.get(comments_url)
-                assert response.status_code == 200
+                if response.status_code != 200:
+                    raise Exception(f'[{response.status_code}] {response.text}')
                 comments_data = response.json()
                 latest_comment = sorted(comments_data, key=get_created_datetime)[-1]
                 latest_comment_body = latest_comment['body']
@@ -245,7 +247,8 @@ class GithubOrganizationProject:
                 index_start = 0
                 while next_url:
                     cards_response = self._session.get(next_url)
-                    assert cards_response.status_code == 200
+                    if cards_response.status_code != 200:
+                        raise Exception(f'[{cards_response.status_code}] {cards_response.text}')
                     cards_data = cards_response.json()
 
                     for position, card in enumerate(cards_data, index_start):
@@ -356,7 +359,8 @@ class GithubOrganizationManager:
             url = '{root}orgs/{org}/repos'.format(root=GITHUB_API_URL,
                                                   org=self.org)
             response = self._session.get(url)
-            assert response.status_code == 200
+            if response.status_code != 200:
+                raise Exception(f'[{response.status_code}] {response.text}')
             data = response.json()
             for repo in data:
                 # dumping to load to class object
