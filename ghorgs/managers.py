@@ -241,16 +241,31 @@ class GithubOrganizationProject:
 
                 # get issues (cards) in column
                 cards_url = column_data['cards_url']
-                cards_response = self._session.get(cards_url)
-                assert cards_response.status_code == 200
-                cards_data = cards_response.json()
-                for position, card in enumerate(cards_data):
-                    if 'content_url' in card and 'issue' in card['content_url']:
-                        job = executor.submit(process_issue,
-                                              card['content_url'],
-                                              column_name,
-                                              position)
-                        jobs.append(job)
+                next_url = cards_url
+                index_start = 0
+                while next_url:
+                    cards_response = self._session.get(next_url)
+                    assert cards_response.status_code == 200
+                    cards_data = cards_response.json()
+
+                    for position, card in enumerate(cards_data, index_start):
+                        if 'content_url' in card and 'issue' in card['content_url']:
+                            job = executor.submit(process_issue,
+                                                  card['content_url'],
+                                                  column_name,
+                                                  position)
+                            jobs.append(job)
+
+                    # check for next url link
+                    links = cards_response.headers.get('Link', None)
+                    next_url = None
+                    if links:
+                        for link in links.split(','):
+                            if 'next' in link:
+                                url_raw, rel = link.split(';')
+                                next_url = url_raw[1:-1]
+                                index_start = position + 1
+                                break
 
             # process results
             for future in concurrent.futures.as_completed(jobs):
@@ -377,4 +392,5 @@ if __name__ == '__main__':
         if project.name in args.projects:
             for issue in project.issues():
                 print(issue.simple)
+
 
