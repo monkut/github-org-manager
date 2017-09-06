@@ -284,7 +284,8 @@ class GithubOrganizationProject:
         # "columns_url":"https://api.github.com/projects/426145/columns",
         url = self._data['columns_url']
         response = self._session.get(url)
-        assert response.status_code == 200
+        if response.status_code != 200:
+            raise Exception(f'[{response.status_code}] {response.text}')
 
         # sample response
         # {'cards_url': 'https://api.github.com/projects/columns/737779/cards',
