@@ -248,7 +248,7 @@ class GithubOrganizationProject:
                 while next_url:
                     cards_response = self._session.get(next_url)
                     if cards_response.status_code != 200:
-                        retry_after_raw = response.headers.get('Retry-After', None)
+                        retry_after_raw = cards_response.headers.get('Retry-After', None)
                         if retry_after_raw:
                             print('Hit Rate Limit, will retry after: {}s'.format(retry_after_raw))
                             sleep(int(retry_after_raw))
