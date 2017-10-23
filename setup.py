@@ -1,8 +1,9 @@
 from setuptools import setup
+from ghorgs import __version__
 
 setup(
     name='ghorgs',
-    version='0.1.9',
+    version=__version__,
     packages=['ghorgs'],
     url='https://github.com/monkut/github-org-manager',
     install_requires=['requests'],
