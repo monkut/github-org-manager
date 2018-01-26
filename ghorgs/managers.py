@@ -171,8 +171,8 @@ class GithubOrganizationProject:
                 ]
             """
             response = self._session.get(url)
-            if response.status_code != 200:
-                raise Exception(f'[{response.status_code}] {response.text}')
+            response.raise_for_status()
+
             issue = json.loads(response.text, object_hook=GithubIssue.from_dict)
             issue._project = self
             processed_issue = [
@@ -212,8 +212,8 @@ class GithubOrganizationProject:
                 # get last comment info
                 comments_url = issue.comments_url
                 response = self._session.get(comments_url)
-                if response.status_code != 200:
-                    raise Exception(f'[{response.status_code}] {response.text}')
+                response.raise_for_status()
+
                 comments_data = response.json()
                 latest_comment = sorted(comments_data, key=get_created_datetime)[-1]
                 latest_comment_body = latest_comment['body']
@@ -255,7 +255,7 @@ class GithubOrganizationProject:
                             sleep(int(retry_after_raw))
                             continue
                         else:
-                            raise Exception(f'[{cards_response.status_code}] {cards_response.text}')
+                            cards_response.raise_for_status()  # raise exception for non-200 values
                     cards_data = cards_response.json()
 
                     for position, card in enumerate(cards_data, index_start):
@@ -285,8 +285,7 @@ class GithubOrganizationProject:
         # "columns_url":"https://api.github.com/projects/426145/columns",
         url = self._data['columns_url']
         response = self._session.get(url)
-        if response.status_code != 200:
-            raise Exception(f'[{response.status_code}] {response.text}')
+        response.raise_for_status()
 
         # sample response
         # {'cards_url': 'https://api.github.com/projects/columns/737779/cards',
@@ -332,8 +331,8 @@ class GithubOrganizationManager:
         url = '{root}orgs/{org}/projects'.format(root=GITHUB_API_URL,
                                                  org=self.org)
         response = self._session.get(url)
-        if response.status_code != 200:
-            raise Exception(f'[{response.status_code}] {response.text}')
+        response.raise_for_status()
+
         projects_data = response.json()
 
         # Create generator for project data
@@ -367,8 +366,8 @@ class GithubOrganizationManager:
             url = '{root}orgs/{org}/repos'.format(root=GITHUB_API_URL,
                                                   org=self.org)
             response = self._session.get(url)
-            if response.status_code != 200:
-                raise Exception(f'[{response.status_code}] {response.text}')
+            response.raise_for_status()
+
             data = response.json()
             for repo in data:
                 # dumping to load to class object
