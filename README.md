@@ -10,7 +10,7 @@ This class allows you to obtain all the projects assigned to a given organizatio
 
 Example:
 ```
-from ghorgs.managers import GithubOrganizationProjectManager
+from ghorgs.managers import GithubOrganizationManager
 ORGANIZATION = 'my orgnaization'
 PROJECT_NAMES_FILTER = ['My Org Project Name']
 manager = GithubOrganizationManager(github_oauth_token,
