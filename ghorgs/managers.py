@@ -71,6 +71,16 @@ class GithubIssue(BaseJsonClass):
         return confirmed_issue_id
 
     @property
+    def is_open(self):
+        if self.state == 'open':
+            return True
+        return False
+
+    @property
+    def is_closed(self):
+        return not self.is_open
+
+    @property
     def depends_on(self):
         """
         Parse the Github issue body and retrieve the issue the issue depends on
@@ -99,22 +109,38 @@ DEFAULT_LABEL_COLOR = 'f29513'
 
 
 class GithubRepository(BaseJsonClass):
-    _session = None
+    _session = None  # Populated on creation
+    _org = None  # Populated on creation
 
     @property
     def milestones(self):
         normalized_url, _ = self.milestones_url.split('{')
         return self._session.get(normalized_url).json()
 
-    def create_label(self, name, color=DEFAULT_LABEL_COLOR):
+    @property
+    def labels(self):
+        normalized_url, _ = self.labels_url.split('{')
+        response = self._session.get(normalized_url)
+        return response.json()
+
+    def create_label(self, name, description='', color=DEFAULT_LABEL_COLOR):
         assert self._session
         label = {
             'name': name,
+            'description': description,
             'color': color,
         }
         normalized_url, _ = self.labels_url.split('{')
         response = self._session.post(normalized_url, json=label)
         return response.status_code, response.json()
+
+    def delete_label(self, name):
+        # DELETE / repos /: owner /:repo / labels /: name
+        assert self._session
+        normalized_url, _ = self.labels_url.split('{')
+        specific_label_url = '{}/{}'.format(normalized_url, name)
+        response = self._session.delete(specific_label_url)
+        return response.status_code
 
 
 class GithubOrganizationProject:
@@ -339,7 +365,7 @@ class GithubOrganizationManager:
         yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
 
     @lru_cache(maxsize=10)
-    def repositories(self, name=None):
+    def repositories(self, names=None):
         def classify(repository_dict):
             """
             Load Github repository API dictionary representation to an internally defined GitRepository Object
@@ -349,18 +375,20 @@ class GithubOrganizationManager:
             repoository_json = json.dumps(repository_dict)
             repository = json.loads(repoository_json, object_hook=GithubRepository.from_dict)
             repository._session = self._session  # attach session so queries can be made
+            repository._org = self.org
             return repository
 
-        if name:
-            # https://api.github.com/repos/OWNER/REPOSITORY
-            url = '{root}repos/{org}/{name}'.format(root=GITHUB_API_URL,
-                                                    org=self.org,
-                                                    name=name)
-            response = self._session.get(url)
-            if response.status_code != 200:
-                raise Exception('{}: {}'.format(url, response.status_code))
-            repository = classify(response.json())
-            yield repository
+        if names:
+            for name in names:
+                # https://api.github.com/repos/OWNER/REPOSITORY
+                url = '{root}repos/{org}/{name}'.format(root=GITHUB_API_URL,
+                                                        org=self.org,
+                                                        name=name)
+                response = self._session.get(url)
+                if response.status_code != 200:
+                    raise Exception('{}: {}'.format(url, response.status_code))
+                repository = classify(response.json())
+                yield repository
 
         else:
             url = '{root}orgs/{org}/repos'.format(root=GITHUB_API_URL,
