@@ -5,6 +5,7 @@ to link Organizational Projects to Issues and capture the *project state (column
 import os
 import json
 import logging
+import datetime
 import concurrent.futures
 from time import sleep
 from functools import lru_cache
@@ -117,11 +118,30 @@ class GithubRepository(BaseJsonClass):
         normalized_url, _ = self.milestones_url.split('{')
         return self._session.get(normalized_url).json()
 
+    def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open'):
+        iso8601 = due_on.isoformat(sep='T', timespec='seconds')
+        if '+' not in iso8601 and 'Z' not in iso8601:
+            iso8601 += 'Z'  # setting to UTC if timezone not defined
+        milestone = {
+            'title': title,
+            'state': state,
+            'description': description,
+            'due_on': iso8601
+        }
+        normalized_url, _ = self.milestones_url.split('{')
+        response = self._session.post(normalized_url, json=milestone)
+        return response.status_code, response.json()
+
+    def delete_milestone(self, number):
+        normalized_url, _ = self.milestones_url.split('{')
+        specific_milestone_url = '{}/{}'.format(normalized_url, number)
+        response = self._session.delete(specific_milestone_url)
+        return response.status_code
+
     @property
     def labels(self):
         normalized_url, _ = self.labels_url.split('{')
-        response = self._session.get(normalized_url)
-        return response.json()
+        return self._session.get(normalized_url).json()
 
     def create_label(self, name, description='', color=DEFAULT_LABEL_COLOR):
         assert self._session
