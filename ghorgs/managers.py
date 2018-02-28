@@ -277,6 +277,7 @@ class GithubOrganizationProject:
             # add description
             processed_issue.append(issue.body)
             issue.simple = processed_issue
+            issue.project_column = column_name
             issue._project_manager = self  # attach so that project can be queiried from within the Issue object
 
             return issue
