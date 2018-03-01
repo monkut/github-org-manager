@@ -7,6 +7,7 @@ This project is intended to provide tools to make it easier to discover the curr
 The main interface is through the `ghorgs.managers.GithubOrganizationManager` class.
 This class allows you to obtain all the projects assigned to a given organization, with the option to filter projects based on the project name.
 
+> NOTE: Github token may be set in the GITHUB_ACCESS_TOKEN environment variable.
 
 Example:
 ```

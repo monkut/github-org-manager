@@ -17,6 +17,7 @@ logging.basicConfig(format='%(asctime) [%(level)s]: %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+GITHUB_ACCESS_TOKEN = os.environ.get('GITHUB_ACCESS_TOKEN', None)
 GITHUB_API_URL = 'https://api.github.com/'
 
 
@@ -345,18 +346,25 @@ class GithubOrganizationProject:
         return response.json()
 
 
+class GithubAccessTokenNotDefined(Exception):
+    pass
+
+
 class GithubOrganizationManager:
     """
     Functions/Tools for managing Github Organization Projects
     """
 
-    def __init__(self, oauth_token, org=None):
+    def __init__(self, oauth_token=GITHUB_ACCESS_TOKEN, org=None):
         """
         :param oauth_token: GITHUB OAUTH TOKEN
         :param org: GITHUB ORGANIZATION NAME
         :param projects: (list) project names to filter
         """
         self._oauth_token = oauth_token
+        if not self._oauth_token:
+            raise GithubAccessTokenNotDefined('Set the GITHUB_ACCESS_TOKEN envar, or pass on GithubOrganizationManager instantiation!')
+
         self._session = requests.session()
         self._session.headers.update({'Authorization': 'token {}'.format(oauth_token)})
         # Accept Header added for GITHUB projects API support
