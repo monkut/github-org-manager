@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 GITHUB_ACCESS_TOKEN = os.environ.get('GITHUB_ACCESS_TOKEN', None)
 GITHUB_API_URL = 'https://api.github.com/'
+DEFAULT_DUEON_DATETIME_STR = '2012-10-09T23:39:01Z'
 
 
 def get_created_datetime(item):
@@ -50,6 +51,9 @@ class GithubIssue(BaseJsonClass):
     _project_manager = None
     project_column = None
     column_priority = None  # added from connected Github Project
+    latest_comment_created_by = None
+    latest_comment_created_at = None
+    latest_comment_body = None
 
     def _process_referenced_issues(self, raw):
         """
@@ -120,18 +124,26 @@ class GithubRepository(BaseJsonClass):
         return self._session.get(normalized_url).json()
 
     def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open'):
-        iso8601 = due_on.isoformat(sep='T', timespec='seconds')
-        if '+' not in iso8601 and 'Z' not in iso8601:
-            iso8601 += 'Z'  # setting to UTC if timezone not defined
+        if due_on:
+            iso8601 = due_on.isoformat(sep='T', timespec='seconds')
+            if '+' not in iso8601 and 'Z' not in iso8601:
+                iso8601 += 'Z'  # setting to UTC if timezone not defined
+        else:
+            iso8601 = DEFAULT_DUEON_DATETIME_STR
+
         milestone = {
             'title': title,
             'state': state,
             'description': description,
             'due_on': iso8601
         }
+
         normalized_url, _ = self.milestones_url.split('{')
         response = self._session.post(normalized_url, json=milestone)
         return response.status_code, response.json()
+
+    def update_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open', number: int=None):
+        raise NotImplementedError()
 
     def delete_milestone(self, number):
         normalized_url, _ = self.milestones_url.split('{')
@@ -189,6 +201,19 @@ class GithubOrganizationProject:
     @property
     def url(self):
         return self._data['url']
+
+    @property
+    @lru_cache()
+    def repositories(self):
+        for repo_url in self.repository_urls():
+            yield GithubRepository(url=repo_url)
+
+    @lru_cache()
+    def repository_urls(self):
+        unique_repo_urls = set()
+        for issue in self.issues():
+            unique_repo_urls.add(issue.repository_url)
+        return tuple(unique_repo_urls)
 
     def issues(self):
         def process_issue(url, column_name=None, position=None):
@@ -269,6 +294,9 @@ class GithubOrganizationProject:
             processed_issue.append(latest_comment_created_at)
             processed_issue.append(latest_comment_created_by)
             processed_issue.append(latest_comment_body)
+            issue.latest_comment_created_at = latest_comment_created_at
+            issue.latest_comment_created_by = latest_comment_created_by
+            issue.latest_comment_body = latest_comment_body
 
             # add position in order to get card priority in column
             processed_issue.append(position)
@@ -378,7 +406,7 @@ class GithubOrganizationManager:
 
         self.org = org
 
-    @lru_cache(maxsize=1)
+    @lru_cache(maxsize=10)
     def projects(self):
         """
         :return: list of organization project objects
@@ -460,5 +488,10 @@ if __name__ == '__main__':
         if project.name in args.projects:
             for issue in project.issues():
                 print(issue.simple)
+
+            print('---')
+            for urls in project.repository_urls():
+                print(urls)
+
 
 
