@@ -196,11 +196,11 @@ class GithubOrganizationProject:
 
     @property
     def html_url(self):
-        return self._data['html_url']
+        return self._clean_url(self._data['html_url'])
 
     @property
     def url(self):
-        return self._data['url']
+        return self._clean_url(self._data['url'])
 
     @property
     @lru_cache()
@@ -319,7 +319,7 @@ class GithubOrganizationProject:
                 column_name = column_data['name']
 
                 # get issues (cards) in column
-                cards_url = column_data['cards_url']
+                cards_url = self._clean_url(column_data['cards_url'])
                 next_url = cards_url
                 index_start = 0
                 while next_url:
@@ -336,8 +336,9 @@ class GithubOrganizationProject:
 
                     for position, card in enumerate(cards_data, index_start):
                         if 'content_url' in card and 'issue' in card['content_url']:
+                            url = self._clean_url(card['content_url'])
                             job = executor.submit(process_issue,
-                                                  card['content_url'],
+                                                  url,
                                                   column_name,
                                                   position)
                             jobs.append(job)
@@ -349,7 +350,7 @@ class GithubOrganizationProject:
                         for link in links.split(','):
                             if 'next' in link:
                                 url_raw, rel = link.split(';')
-                                next_url = url_raw[1:-1]
+                                next_url = self._clean_url(url_raw[1:-1])
                                 index_start = position + 1
                                 break
 
@@ -357,9 +358,15 @@ class GithubOrganizationProject:
             for future in concurrent.futures.as_completed(jobs):
                 yield future.result()
 
+    def _clean_url(self, url):
+        schema_index = url.index('http')
+        return url[schema_index:]      
+                
     def columns(self):
+        
+      
         # "columns_url":"https://api.github.com/projects/426145/columns",
-        url = self._data['columns_url']
+        url = self._clean_url(self._data['columns_url'])
         response = self._session.get(url)
         response.raise_for_status()
 
