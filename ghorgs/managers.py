@@ -6,6 +6,7 @@ import os
 import json
 import logging
 import datetime
+import base64
 import concurrent.futures
 from time import sleep
 from functools import lru_cache
@@ -18,7 +19,9 @@ logging.basicConfig(format='%(asctime) [%(level)s]: %(message)s',
 logger = logging.getLogger(__name__)
 
 GITHUB_ACCESS_TOKEN = os.environ.get('GITHUB_ACCESS_TOKEN', None)
-GITHUB_API_URL = 'https://api.github.com/'
+GITHUB_REST_API_URL = 'https://api.github.com/'
+GITHUB_GRAPHQL_API_URL = ''
+
 DEFAULT_DUEON_DATETIME_STR = '2012-10-09T23:39:01Z'
 
 
@@ -143,7 +146,27 @@ class GithubRepository(BaseJsonClass):
         return response.status_code, response.json()
 
     def update_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open', number: int=None):
-        raise NotImplementedError()
+        assert number
+        #PATCH / repos /: owner /:repo / milestones /: number
+        if due_on:
+            iso8601 = due_on.isoformat(sep='T', timespec='seconds')
+            if '+' not in iso8601 and 'Z' not in iso8601:
+                iso8601 += 'Z'  # setting to UTC if timezone not defined
+        else:
+            iso8601 = DEFAULT_DUEON_DATETIME_STR
+
+        milestone = {
+            'title': title,
+            'state': state,
+            'description': description,
+            'due_on': iso8601
+        }
+
+        normalized_url, _ = self.milestones_url.split('{')
+        update_url = f'{normalized_url}/{number}'
+        print('UPDATE_URL:', update_url)
+        response = self._session.patch(update_url, json=milestone)
+        return response.status_code, response.json()
 
     def delete_milestone(self, number):
         normalized_url, _ = self.milestones_url.split('{')
@@ -413,12 +436,15 @@ class GithubOrganizationManager:
 
         self.org = org
 
+    def get_base64_id(self, value):
+        return
+
     @lru_cache(maxsize=10)
     def projects(self):
         """
         :return: list of organization project objects
         """
-        url = '{root}orgs/{org}/projects'.format(root=GITHUB_API_URL,
+        url = '{root}orgs/{org}/projects'.format(root=GITHUB_REST_API_URL,
                                                  org=self.org)
         response = self._session.get(url)
         response.raise_for_status()
@@ -445,7 +471,7 @@ class GithubOrganizationManager:
         if names:
             for name in names:
                 # https://api.github.com/repos/OWNER/REPOSITORY
-                url = '{root}repos/{org}/{name}'.format(root=GITHUB_API_URL,
+                url = '{root}repos/{org}/{name}'.format(root=GITHUB_REST_API_URL,
                                                         org=self.org,
                                                         name=name)
                 response = self._session.get(url)
@@ -455,7 +481,7 @@ class GithubOrganizationManager:
                 yield repository
 
         else:
-            url = '{root}orgs/{org}/repos'.format(root=GITHUB_API_URL,
+            url = '{root}orgs/{org}/repos'.format(root=GITHUB_REST_API_URL,
                                                   org=self.org)
             response = self._session.get(url)
             response.raise_for_status()
