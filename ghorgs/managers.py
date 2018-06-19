@@ -49,6 +49,15 @@ class BaseJsonClass:
         obj.__dict__.update(d)
         return obj
 
+    def to_json(self):
+        def get_object_dict(obj):
+            if hasattr(obj, '__dict__'):
+                # filter out *private* methods/functions/variables
+                return {k: v for k, v in obj.__dict__.items() if not k.startswith('_')}
+            else:
+                return repr(obj)
+        return json.dumps(self, default=get_object_dict, sort_keys=True, indent=4)
+
 
 class GithubIssue(BaseJsonClass):
     _project_manager = None
@@ -521,8 +530,7 @@ if __name__ == '__main__':
     for project in manager.projects():
         if project.name in args.projects:
             for issue in project.issues():
-                print(issue.simple)
-
+                print(issue.to_json())
             print('---')
             for urls in project.repository_urls():
                 print(urls)
