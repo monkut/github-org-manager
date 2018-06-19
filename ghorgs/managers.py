@@ -63,6 +63,7 @@ class GithubIssue(BaseJsonClass):
         Github referenced issues take the following formats:
             '#N' -- Where issue is in the same repository as current issue
             'OWNER/REPO#N'
+
         :param raw:
         :return:
         """
