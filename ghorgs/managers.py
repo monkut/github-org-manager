@@ -6,9 +6,9 @@ import os
 import json
 import logging
 import datetime
-import base64
 import concurrent.futures
 from time import sleep
+from typing import Tuple
 from functools import lru_cache
 from dateutil.parser import parse
 
@@ -136,7 +136,22 @@ class GithubRepository(BaseJsonClass):
         normalized_url, _ = self.milestones_url.split('{')
         return self._session.get(normalized_url).json()
 
-    def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open'):
+    def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open') -> Tuple[int, dict]:
+        """
+        Create a github repository milestone
+
+        :param title: milestone title
+        :param description: milestone description
+        :param due_on: milestone due date
+        :param state: ('open'|'closed'|'all')
+        :return:
+            Status code and parsed JSON response.
+            https://developer.github.com/v3/issues/milestones/#create-a-milestone
+            .. code:: python
+
+                (STATUS_CODE, CREATE_RESPONSE)
+
+        """
         if due_on:
             iso8601 = due_on.isoformat(sep='T', timespec='seconds')
             if '+' not in iso8601 and 'Z' not in iso8601:
