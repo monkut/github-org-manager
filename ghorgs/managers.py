@@ -3,6 +3,7 @@ A Manager utilizing the GITHUB API with the objective
 to link Organizational Projects to Issues and capture the *project state (column)* of the issues.
 """
 import os
+import re
 import json
 import logging
 import datetime
@@ -24,6 +25,15 @@ GITHUB_GRAPHQL_API_URL = ''
 
 DEFAULT_DUEON_DATETIME_STR = '2012-10-09T23:39:01Z'
 
+
+def parse_github_link_header(link_value):
+    parsed_links = {}
+    for value in link_value.split(','):
+        url_raw, condition_raw = value.split('; ')
+        url = url_raw.strip()[1:-1]
+        condition = re.findall(r'\"(.+?)\"', condition_raw.strip())[0]
+        parsed_links[condition] = url
+    return parsed_links
 
 def get_created_datetime(item):
     """
@@ -127,14 +137,56 @@ class GithubIssue(BaseJsonClass):
 DEFAULT_LABEL_COLOR = 'f29513'
 
 
-class GithubRepository(BaseJsonClass):
+class GithubPagedRequestHandler:
+
+    def get_paged_content(self, session: requests.Session, url: str) -> list:
+        """
+        Get the paged response from a github url
+
+        .. note::
+
+            This is only expected to be used for urls which return multiple values (list)
+
+        :param session: Session from which to make the GET reqeust
+        :param url: URL to retrieve data/content from
+        :return:  All data/content from the paged response
+        """
+        all_data = []
+        current_url = url
+        last_url = None
+        while last_url != current_url:
+            response = session.get(current_url)
+            retry_after_raw = response.headers.get('Retry-After', None)
+            if retry_after_raw:
+                print('Hit Rate Limit, will retry after: {}s'.format(retry_after_raw))
+                sleep(int(retry_after_raw))
+                continue
+            response.raise_for_status()
+
+            data = response.json()
+            assert isinstance(data, list)
+            all_data.extend(data)
+
+            # check header
+            if 'Link' in response.headers:
+                # parse
+                parsed_link_header = parse_github_link_header(response.headers['Link'])
+                current_url = parsed_link_header['next']
+                last_url = parsed_link_header['last']
+            else:
+                last_url = current_url
+        return all_data
+
+
+class GithubRepository(BaseJsonClass, GithubPagedRequestHandler):
     _session = None  # Populated on creation
     _org = None  # Populated on creation
 
     @property
     def milestones(self):
         normalized_url, _ = self.milestones_url.split('{')
-        return self._session.get(normalized_url).json()
+        data = self.get_paged_content(self._session, normalized_url)
+        return data
 
     def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str='open') -> Tuple[int, dict]:
         """
@@ -224,7 +276,7 @@ class GithubRepository(BaseJsonClass):
         return response.status_code
 
 
-class GithubOrganizationProject:
+class GithubOrganizationProject(GithubPagedRequestHandler):
     """
     Wraps an individual Github Organization Project found in the response:
     https://developer.github.com/v3/projects/#list-organization-projects
@@ -331,10 +383,7 @@ class GithubOrganizationProject:
             if issue.comments:  # defines number of comments
                 # get last comment info
                 comments_url = issue.comments_url
-                response = self._session.get(comments_url)
-                response.raise_for_status()
-
-                comments_data = response.json()
+                comments_data = self.get_paged_content(self._session, comments_url)
                 latest_comment = sorted(comments_data, key=get_created_datetime)[-1]
                 latest_comment_body = latest_comment['body']
                 latest_comment_created_at = parse(latest_comment['created_at'])
@@ -368,39 +417,17 @@ class GithubOrganizationProject:
 
                 # get issues (cards) in column
                 cards_url = self._clean_url(column_data['cards_url'])
-                next_url = cards_url
-                index_start = 0
-                while next_url:
-                    cards_response = self._session.get(next_url)
-                    if cards_response.status_code != 200:
-                        retry_after_raw = cards_response.headers.get('Retry-After', None)
-                        if retry_after_raw:
-                            print('Hit Rate Limit, will retry after: {}s'.format(retry_after_raw))
-                            sleep(int(retry_after_raw))
-                            continue
-                        else:
-                            cards_response.raise_for_status()  # raise exception for non-200 values
-                    cards_data = cards_response.json()
+                cards_data = self.get_paged_content(self._session, cards_url)
 
-                    for position, card in enumerate(cards_data, index_start):
-                        if 'content_url' in card and 'issue' in card['content_url']:
-                            url = self._clean_url(card['content_url'])
-                            job = executor.submit(process_issue,
-                                                  url,
-                                                  column_name,
-                                                  position)
-                            jobs.append(job)
-
-                    # check for next url link
-                    links = cards_response.headers.get('Link', None)
-                    next_url = None
-                    if links:
-                        for link in links.split(','):
-                            if 'next' in link:
-                                url_raw, rel = link.split(';')
-                                next_url = self._clean_url(url_raw[1:-1])
-                                index_start = position + 1
-                                break
+                index_start = 1
+                for position, card in enumerate(cards_data, index_start):
+                    if 'content_url' in card and 'issue' in card['content_url']:
+                        url = self._clean_url(card['content_url'])
+                        job = executor.submit(process_issue,
+                                              url,
+                                              column_name,
+                                              position)
+                        jobs.append(job)
 
             # process results
             for future in concurrent.futures.as_completed(jobs):
@@ -411,29 +438,35 @@ class GithubOrganizationProject:
         return url[schema_index:]      
                 
     def columns(self):
-        
-      
+        """
+        get the project columns data
+
+        :return:
+            .. code:: python
+
+                [
+                    {
+                    'cards_url': 'https://api.github.com/projects/columns/737779/cards',
+                    'created_at': '2017-03-03T00:45:48Z',
+                    'id': 737779,
+                    'name': 'Ready For Acceptance Tests',
+                    'project_url': 'https://api.github.com/projects/426145',
+                    'updated_at': '2017-03-27T04:11:18Z',
+                    'url': 'https://api.github.com/projects/columns/737779'
+                    },
+                ]
+        """
         # "columns_url":"https://api.github.com/projects/426145/columns",
         url = self._clean_url(self._data['columns_url'])
-        response = self._session.get(url)
-        response.raise_for_status()
-
-        # sample response
-        # {'cards_url': 'https://api.github.com/projects/columns/737779/cards',
-        #   'created_at': '2017-03-03T00:45:48Z',
-        #   'id': 737779,
-        #   'name': 'Ready For Acceptance Tests',
-        #   'project_url': 'https://api.github.com/projects/426145',
-        #   'updated_at': '2017-03-27T04:11:18Z',
-        #   'url': 'https://api.github.com/projects/columns/737779'},
-        return response.json()
+        columns_data = self.get_paged_content(self._session, url)
+        return columns_data
 
 
 class GithubAccessTokenNotDefined(Exception):
     pass
 
 
-class GithubOrganizationManager:
+class GithubOrganizationManager(GithubPagedRequestHandler):
     """
     Functions/Tools for managing Github Organization Projects
     """
@@ -471,10 +504,7 @@ class GithubOrganizationManager:
         """
         url = '{root}orgs/{org}/projects'.format(root=GITHUB_REST_API_URL,
                                                  org=self.org)
-        response = self._session.get(url)
-        response.raise_for_status()
-
-        projects_data = response.json()
+        projects_data = self.get_paged_content(self._session, url)
 
         # Create generator for project data
         yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
@@ -505,13 +535,11 @@ class GithubOrganizationManager:
                 repository = classify(response.json())
                 yield repository
 
+
         else:
             url = '{root}orgs/{org}/repos'.format(root=GITHUB_REST_API_URL,
                                                   org=self.org)
-            response = self._session.get(url)
-            response.raise_for_status()
-
-            data = response.json()
+            data = self.get_paged_content(self._session, url)
             for repo in data:
                 # dumping to load to class object
                 respository = classify(repo)
