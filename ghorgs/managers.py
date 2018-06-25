@@ -228,6 +228,8 @@ class GithubRepository(BaseJsonClass, GithubPagedRequestHandler):
         assert number
         #PATCH / repos /: owner /:repo / milestones /: number
         if due_on:
+            if isinstance(due_on, datetime.date):
+                due_on = datetime.datetime.combine(due_on, datetime.datetime.min.time())
             iso8601 = due_on.isoformat(sep='T', timespec='seconds')
             if '+' not in iso8601 and 'Z' not in iso8601:
                 iso8601 += 'Z'  # setting to UTC if timezone not defined
