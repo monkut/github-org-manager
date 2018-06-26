@@ -15,7 +15,7 @@ from dateutil.parser import parse
 
 import requests
 
-logging.basicConfig(format='%(asctime)s [ %(level)s ]: %(message)s',
+logging.basicConfig(format='%(asctime)s [ %(levelname)s ]: %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
