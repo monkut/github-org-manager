@@ -64,7 +64,6 @@ class GithubGraphQLManager:
         """
         Create an Organizational Project in github
 
-        :param organization: Github organization name
         :param name: name of project to create
         :param description: description of project to create
         :param columns:
