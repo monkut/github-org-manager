@@ -2,33 +2,34 @@
 
 This project is intended to provide tools to make it easier to discover the current state of multiple GITHUB Organizational projects.
 
-## Usage
 
-The main interface is through the `ghorgs.managers.GithubOrganizationManager` class.
-This class allows you to obtain all the projects assigned to a given organization, with the option to filter projects based on the project name.
+## GithubOrganizationManager class
 
-> NOTE: Github token may be set in the GITHUB_ACCESS_TOKEN environment variable.
+The main user interface is through the `ghorgs.managers.GithubOrganizationManager` class.
 
-Example:
-```
-from ghorgs.managers import GithubOrganizationManager
-ORGANIZATION = 'my orgnaization'
-PROJECT_NAMES_FILTER = ['My Org Project Name']
-manager = GithubOrganizationManager(github_oauth_token,
-                                    ORGANIZATION)
-for project in manager.projects():
-    for issue in project.issues():
-        print(issue.simple)
-```
+### GithubOrganizationManager Methods
+
+- `create_organizational_project(name: str, description: str, columns: list =None) -> Tuple[str, List[object]]`
+    - Creates a new *organizational project*
+
+- `projects() -> Generator[GithubOrganizationProject, None, None]`
+    - returns a generator yielding `GithubOrganizationProject()` objects
+
+- `repositories(names: List[str]=None) -> Generator[GithubRepository, None, None]`
+    - returns a generator yielding `GithubRepository` objects
+
+
+## GithubOrganizationProject class
+
+### GithubOrganizationProject methods
 
 The `GithubOrganizationManager.projects()` method *yields* `GithubOrganizationProject` objects.
 `GithubOrganizationProject` objects wrap the github API returned JSON by providing the following convience methods:
 
-*issues*
-
-- Method that provides all issues attached to an *organzation project*, with the option to filter by *column_name*
-    Returns a list of github issues containing the following information:
-- Resulting in a GithubIssue object that wraps the JSON object returned by the github API.
+- `issues()`
+    - Method that provides all issues attached to an *organzation project*, with the option to filter by *column_name*
+        Returns a list of github issues containing the following information:
+    - Resulting in a GithubIssue object that wraps the JSON object returned by the github API.
 
 ```
 # Returned issue information:
@@ -54,9 +55,9 @@ ISSUE_DESCRIPTION, (str)
 ]
 ```
 
-*columns*
+- `columns()`
+    - Returns all available column data assigned to the project.
 
-- Returns all available column data assigned to the project.
 ```
 [
     {
@@ -68,6 +69,23 @@ ISSUE_DESCRIPTION, (str)
         'updated_at': '2017-03-27T04:11:18Z',
         'url': 'https://api.github.com/projects/columns/11111'
      },
-    ...     
+    ...
  ]
 ```
+
+
+## Usage
+
+> NOTE: Github token may be set in the GITHUB_ACCESS_TOKEN environment variable.
+
+Example:
+```
+from ghorgs.managers import GithubOrganizationManager
+ORGANIZATION = 'my orgnaization'
+manager = GithubOrganizationManager(github_oauth_token,
+                                    ORGANIZATION)
+for project in manager.projects():
+    for issue in project.issues():
+        print(issue.simple)
+```
+

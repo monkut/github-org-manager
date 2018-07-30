@@ -6,7 +6,7 @@ import os
 import json
 import uuid
 import logging
-from typing import Tuple, List
+from typing import Tuple, List, Generator
 from functools import lru_cache
 
 import requests
@@ -33,7 +33,7 @@ class GithubGraphQLManager:
         self.organization = github_organization_name
         self.token = token
 
-    def _get_owner_id(self, name):
+    def _get_owner_id(self, name: str) -> str:
         """Performs a lookup for the related internal github ID needed as a key for other queries"""
         query = """
         {
@@ -131,7 +131,7 @@ class GithubGraphQLManager:
 
         return project_url, responses
 
-    def add_columns(self, project_id, columns):
+    def add_columns(self, project_id: str, columns: List[dict]) -> List:
         """
         Add column(s) to the given project.
 
@@ -173,7 +173,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
     Functions/Tools for managing Github Organization Projects
     """
 
-    def __init__(self, oauth_token=GITHUB_ACCESS_TOKEN, org=None):
+    def __init__(self, oauth_token: str=GITHUB_ACCESS_TOKEN, org: str=None):
         """
         :param oauth_token: GITHUB OAUTH TOKEN
         :param org: GITHUB ORGANIZATION NAME
@@ -220,7 +220,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
         return graphql_manager.create_organizational_project(*args, **kwargs)
 
     @lru_cache(maxsize=10)
-    def projects(self):
+    def projects(self) -> Generator[GithubOrganizationProject, None, None]:
         """
         :return: list of organization project objects
         """
@@ -232,15 +232,15 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
         yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
 
     @lru_cache(maxsize=10)
-    def repositories(self, names=None):
-        def classify(repository_dict):
+    def repositories(self, names: List[str]=None) -> Generator[GithubRepository, None, None]:
+        def classify(repository_response: dict) -> GithubRepository:
             """
-            Load Github repository API dictionary representation to an internally defined GitRepository Object
-            :param repository_dict: (dict) github Repository dictionary Representation
+            Load Github repository API dictionary representation into an internally defined GitRepository Object
+            :param repository_response: (dict) github Repository dictionary Representation
             :return: (obj) GithubRepository
             """
-            repoository_json = json.dumps(repository_dict)
-            repository = json.loads(repoository_json, object_hook=GithubRepository.from_dict)
+            repository_json = json.dumps(repository_response)
+            repository = json.loads(repository_json, object_hook=GithubRepository.from_dict)
             repository._session = self._session  # attach session so queries can be made
             repository._org = self.org
             return repository
@@ -298,6 +298,3 @@ if __name__ == '__main__':
             print('---')
             for urls in project.repository_urls():
                 print(urls)
-
-
-
