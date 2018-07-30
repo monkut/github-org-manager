@@ -1,4 +1,4 @@
-# github-projects-manager README
+# github-org-manager README
 
 This project is intended to provide tools to make it easier to discover the current state of multiple GITHUB Organizational projects.
 
