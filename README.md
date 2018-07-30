@@ -81,9 +81,10 @@ ISSUE_DESCRIPTION, (str)
 Example:
 ```
 from ghorgs.managers import GithubOrganizationManager
-ORGANIZATION = 'my orgnaization'
-manager = GithubOrganizationManager(github_oauth_token,
-                                    ORGANIZATION)
+ORGANIZATION = 'my organization'
+TOKEN = os.environ.get('GITHUB_API_TOKEN')
+manager = GithubOrganizationManager(organizaton=ORGANIZATION,
+                                    token=TOKEN)
 for project in manager.projects():
     for issue in project.issues():
         print(issue.simple)
