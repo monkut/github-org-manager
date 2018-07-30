@@ -173,18 +173,19 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
     Functions/Tools for managing Github Organization Projects
     """
 
-    def __init__(self, oauth_token: str=GITHUB_ACCESS_TOKEN, org: str=None):
+    def __init__(self, organization: str, token: str=GITHUB_ACCESS_TOKEN):
         """
-        :param oauth_token: GITHUB OAUTH TOKEN
-        :param org: GITHUB ORGANIZATION NAME
-        :param projects: (list) project names to filter
+        :param organization: Github organization name
+        :param token: Github personal access token
+            (see: https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/)
+
         """
-        self._oauth_token = oauth_token
-        if not self._oauth_token:
+        self._token = token
+        if not self._token:
             raise GithubAccessTokenNotDefined('Set the GITHUB_ACCESS_TOKEN envar, or pass on GithubOrganizationManager instantiation!')
 
         self._session = requests.session()
-        self._session.headers.update({'Authorization': 'token {}'.format(oauth_token)})
+        self._session.headers.update({'Authorization': 'token {}'.format(token)})
         # Accept Header added for GITHUB projects API support
         # See:
         # https://developer.github.com/v3/projects/
@@ -194,7 +195,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
         adapter = requests.adapters.HTTPAdapter(pool_connections=100, pool_maxsize=100)
         self._session.mount('https://', adapter)
 
-        self.org = org
+        self.org = organization
 
     def create_organizational_project(self, *args, **kwargs) -> Tuple[str, List[object]]:
         """
@@ -215,7 +216,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
         """
         graphql_manager = GithubGraphQLManager(
             github_organization_name=self.org,
-            token=self._oauth_token,
+            token=self._token,
         )
         return graphql_manager.create_organizational_project(*args, **kwargs)
 
@@ -289,8 +290,8 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    manager = GithubOrganizationManager(args.token,
-                                        args.organization)
+    manager = GithubOrganizationManager(args.organization,
+                                        args.token)
     for project in manager.projects():
         if project.name in args.projects:
             for issue in project.issues():
