@@ -23,8 +23,8 @@ def update_repository_labels(organization, token, repositories, labels_definitio
     created_labels = []
     deleted_labels = []
     assert os.path.exists(labels_definition_filepath)
-    manager = GithubOrganizationManager(token,
-                                        organization)
+    manager = GithubOrganizationManager(organization,
+                                        token)
 
     # load file
     label_definitions = None
