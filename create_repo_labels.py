@@ -34,8 +34,8 @@ if __name__ == '__main__':
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
-    manager = GithubOrganizationManager(args.token,
-                                        args.organization)
+    manager = GithubOrganizationManager(args.organization,
+                                        args.token)
     repository = next(manager.repositories(name=args.repository))  # should only be 1
     for label_name in args.labels:
         repository.create_label(label_name, color=args.color)
