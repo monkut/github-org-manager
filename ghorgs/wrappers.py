@@ -130,7 +130,7 @@ class GithubPagedRequestHandler:
         all_data = []
         current_url = url
         last_url = None
-        while last_url != current_url:
+        while True:
             response = session.get(current_url)
             retry_after_raw = response.headers.get('Retry-After', None)
             if retry_after_raw:
@@ -143,14 +143,16 @@ class GithubPagedRequestHandler:
             assert isinstance(data, list)
             all_data.extend(data)
 
+            # Archie> Need to add this check here so last page will be processed
+            if current_url == last_url:
+                break
+
             # check header
             if 'Link' in response.headers:
                 # parse
                 parsed_link_header = parse_github_link_header(response.headers['Link'])
                 current_url = parsed_link_header['next']
                 last_url = parsed_link_header['last']
-            else:
-                last_url = current_url
         return all_data
 
 
