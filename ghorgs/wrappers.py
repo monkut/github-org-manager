@@ -130,7 +130,7 @@ class GithubPagedRequestHandler:
         all_data = []
         current_url = url
         last_url = None
-        while last_url != current_url:
+        while True:
             response = session.get(current_url)
             retry_after_raw = response.headers.get('Retry-After', None)
             if retry_after_raw:
@@ -142,6 +142,10 @@ class GithubPagedRequestHandler:
             data = response.json()
             assert isinstance(data, list)
             all_data.extend(data)
+
+            # Need to move this check here and change to 'while True' so the last page of the gitbub project will be processed
+            if current_url == last_url:
+                break
 
             # check header
             if 'Link' in response.headers:
