@@ -143,7 +143,7 @@ class GithubPagedRequestHandler:
             assert isinstance(data, list)
             all_data.extend(data)
 
-            # Archie> Need to add this check here so last page will be processed
+            # Archie> Need to move this check here so last page will be processed for project
             if current_url == last_url:
                 break
 
@@ -153,6 +153,8 @@ class GithubPagedRequestHandler:
                 parsed_link_header = parse_github_link_header(response.headers['Link'])
                 current_url = parsed_link_header['next']
                 last_url = parsed_link_header['last']
+            else:
+                last_url = current_url
         return all_data
 
 
