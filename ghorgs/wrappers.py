@@ -143,7 +143,7 @@ class GithubPagedRequestHandler:
             assert isinstance(data, list)
             all_data.extend(data)
 
-            # Archie> Need to move this check here so last page will be processed for project
+            # Need to move this check here and change to 'while True' so the last page of the gitbub project will be processed
             if current_url == last_url:
                 break
 
