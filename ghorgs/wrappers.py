@@ -137,24 +137,24 @@ class GithubPagedRequestHandler:
                 print('Hit Rate Limit, will retry after: {}s'.format(retry_after_raw))
                 sleep(int(retry_after_raw))
                 continue
-            response.raise_for_status()
 
+            response.raise_for_status()
             data = response.json()
             assert isinstance(data, list)
             all_data.extend(data)
-
-            # Need to move this check here and change to 'while True' so the last page of the gitbub project will be processed
+            # Need to move this check here to process the last page returned by a multiple page result
             if current_url == last_url:
                 break
 
             # check header
             if 'Link' in response.headers:
-                # parse
+                # This occurs only for multi-page result and on project URL only
                 parsed_link_header = parse_github_link_header(response.headers['Link'])
                 current_url = parsed_link_header['next']
                 last_url = parsed_link_header['last']
             else:
-                last_url = current_url
+                break
+
         return all_data
 
 
