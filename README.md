@@ -1,11 +1,11 @@
 # github-org-manager README
 
-This project is intended to provide tools to make it easier to discover the current state of multiple GITHUB Organizational projects.
+This project provides classes to make it easier to discover the current state of multiple GITHUB Organizational projects.
 
 
 ## GithubOrganizationManager class
 
-The main user interface is through the `ghorgs.managers.GithubOrganizationManager` class.
+The main interface is through the `ghorgs.managers.GithubOrganizationManager` class.
 
 ### GithubOrganizationManager Methods
 
@@ -13,7 +13,7 @@ The main user interface is through the `ghorgs.managers.GithubOrganizationManage
     - Creates a new *organizational project*
 
 - `projects() -> Generator[GithubOrganizationProject, None, None]`
-    - returns a generator yielding `GithubOrganizationProject()` objects
+    - returns a generator yielding `GithubOrganizationProject` objects
 
 - `repositories(names: List[str]=None) -> Generator[GithubRepository, None, None]`
     - returns a generator yielding `GithubRepository` objects
