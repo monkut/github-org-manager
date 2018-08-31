@@ -6,7 +6,7 @@ import os
 import json
 import uuid
 import logging
-from typing import Tuple, List, Generator
+from typing import Tuple, List, Generator, Optional
 from functools import lru_cache
 
 import requests
@@ -60,7 +60,7 @@ class GithubGraphQLManager:
             raise UnexpectedResponseError(e.args)
         return org_id
 
-    def create_organizational_project(self, name: str, description: str, columns: list =None) -> Tuple[str, List[object]]:
+    def create_organizational_project(self, name: str, description: str, columns: Optional[list]=None) -> Tuple[str, List[object]]:
         """
         Create an Organizational Project in github
 
@@ -74,8 +74,8 @@ class GithubGraphQLManager:
             .. code:: python
 
                 [
-                    {'name': COLUMN_NAME},
-                    {'name': COLUMN_NAME},
+                    COLUMN_NAME,
+                    COLUMN_NAME
                 ]
 
         :return:
@@ -131,7 +131,7 @@ class GithubGraphQLManager:
 
         return project_url, responses
 
-    def add_columns(self, project_id: str, columns: List[dict]) -> List:
+    def add_columns(self, project_id: str, columns: List[str]) -> List:
         """
         Add column(s) to the given project.
 
@@ -144,7 +144,7 @@ class GithubGraphQLManager:
 
         """
         addcolumns_responses = []
-        for column_definition in columns:
+        for column_name in columns:
             mutation_id = str(uuid.uuid4())  # get a random id
             graphql_addprojectcolumn = """
             mutation {
@@ -157,7 +157,7 @@ class GithubGraphQLManager:
                       }
                     }
                   }
-            }""" % {'name': column_definition['name'],
+            }""" % {'name': column_name,
                     'project_id': project_id,
                     'mutation_id': mutation_id}
 
