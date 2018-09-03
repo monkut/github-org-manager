@@ -19,6 +19,47 @@ logging.basicConfig(format='%(asctime)s [ %(levelname)s ]: %(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# https://developer.github.com/webhooks/
+VALID_WEBHOOK_EVENTS = (
+    '*',
+    'check_run',
+    'check_suite',
+    'commit_comment',
+    'create',
+    'delete',
+    'deployment',
+    'deployment_status',
+    'fork',
+    'github_app_authorization',
+    'gollum',
+    'installation',
+    'installation_repositories',
+    'issue_comment',
+    'issues',
+    'label',
+    'marketplace_purchase',
+    'member',
+    'membership',
+    'milestone'
+    'organization',
+    'org_block',
+    'page_build',
+    'project_card',
+    'project_column',
+    'project',
+    'public',
+    'pull_request_review_comment',
+    'pull_request_review',
+    'pull_request',
+    'push',
+    'repository',
+    'repository_vulnerability_alert',
+    'release',
+    'status',
+    'team',
+    'team_add',
+    'watch',
+)
 GITHUB_ACCESS_TOKEN = os.environ.get('GITHUB_ACCESS_TOKEN', None)
 GITHUB_REST_API_URL = 'https://api.github.com/'
 
@@ -196,6 +237,34 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
         self._session.mount('https://', adapter)
 
         self.org = organization
+
+    def create_organizational_webhook(self, webhook_target_url: str, events: List[str], content_type: str='json', active: bool=True):
+        if not all(e in VALID_WEBHOOK_EVENTS for e in events):
+            raise ValueError(f'invalid event given, must be one of: {VALID_WEBHOOK_EVENTS}')
+        params = {
+            'name': 'web',
+            'active': active,
+            'events': events,
+            'config': {
+                'url': webhook_target_url,
+                'content_type': content_type,
+            }
+        }
+        url = '{root}orgs/{org}/hooks'.format(root=GITHUB_REST_API_URL,
+                                              org=self.org)
+        response = self._session.post(url, json=params)
+        return response.status_code, response.json()
+
+    def ping_organizational_webhook(self, hook_id: int):
+        """
+        This will trigger a ping event to be sent to the hook.
+        :return:
+        """
+        url = '{root}orgs/{org}/hooks/{hook_id}/ping'.format(root=GITHUB_REST_API_URL,
+                                                             org=self.org,
+                                                             hook_id=hook_id)
+        response = self._session.post(url)
+        return response.status_code, response.json()
 
     def create_organizational_project(self, *args, **kwargs) -> Tuple[str, List[object]]:
         """

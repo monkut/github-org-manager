@@ -111,11 +111,15 @@ class GithubIssue(BaseJsonClass):
 
 
 DEFAULT_LABEL_COLOR = 'f29513'
+VALID_GITHUB_PAGED_REQUEST_HANDLER_METHODS = (
+    'GET',
+    'POST',
+)
 
 
 class GithubPagedRequestHandler:
 
-    def get_paged_content(self, session: requests.Session, url: str) -> list:
+    def get_paged_content(self, session: requests.Session, url: str, method: str='GET') -> list:
         """
         Get the paged response from a github url
 
@@ -127,6 +131,9 @@ class GithubPagedRequestHandler:
         :param url: URL to retrieve data/content from
         :return:  All data/content from the paged response
         """
+        if method not in VALID_GITHUB_PAGED_REQUEST_HANDLER_METHODS:
+            raise ValueError(f'Invalid "method" value, must be one of: {VALID_GITHUB_PAGED_REQUEST_HANDLER_METHODS}')
+
         all_data = []
         current_url = url
         last_url = None
