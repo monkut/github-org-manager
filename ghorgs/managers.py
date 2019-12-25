@@ -10,8 +10,10 @@ from typing import Tuple, List, Generator, Optional
 from functools import lru_cache
 
 import requests
-from .wrappers import GithubOrganizationProject, GithubPagedRequestHandler, GithubRepository
-from .functions import run_graphql_request
+from dateutil.parser import parse
+
+from .wrappers import GithubOrganizationProject, GithubPagedRequestHandler, GithubRepository, GithubIssue
+from .functions import run_graphql_request, get_created_datetime
 from .exceptions import UnexpectedResponseError
 
 
@@ -266,6 +268,98 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
                 # dumping to load to class object
                 respository = classify(repo)
                 yield respository
+
+    def get_github_issue(self, api_url: str) -> GithubIssue:
+        """
+        Retrieve data from the given ISSUE URL and internal COMMENTS URL and return a list of key desired values
+        :param url: (str) GITHUB issue url
+        :param column_name: (str) Project Column Name that the issue belongs to
+        :return: (list)
+            [
+                ISSUE_NUMBER, (int)
+                ISSUE_ID, (int)
+                ISSUE_TITLE, (str)
+                ISSUE_STATE, (str)
+                PROJECT_COLUMN_NAME, (str)
+                ISSUE_URL, (str)
+                ISSUE_MILESTONE, (str)
+                ISSUE_LABEL_NAMES, (list)
+                ISSUE_CREATED_BY, (str)
+                ISSUE_ASSIGNEE, (str)
+                ISSUE_CREATED_AT, (datetime)
+                ISSUE_UPDATED_AT, (datetime)
+                LATEST_COMMENT_CREATED_AT, (datetime)
+                LATEST_COMMENT_CREATED_BY, (str)
+                LATEST_COMMENT_BODY, (str)
+                CARD_POSITION_IN_COLUMN, (int)
+                ISSUE_DESCRIPTION, (str)
+            ]
+        """
+        response = self._session.get(api_url)
+        response.raise_for_status()
+
+        issue = json.loads(response.text, object_hook=GithubIssue.from_dict)
+        column_name = None
+        processed_issue = [
+            issue.number,
+            issue.id,
+            issue.title,
+            issue.state,
+            column_name,
+            issue.html_url,  # link
+            issue.milestone
+        ]
+
+        # parse labels
+        labels = [d.name for d in issue.labels]
+        processed_issue.append(labels)
+
+        # add creator
+        created_by = issue.user.login
+        processed_issue.append(created_by)
+
+        # add assignee
+        assignee = None
+        if issue.assignee:
+            assignee = issue.assignee.login
+        processed_issue.append(assignee)
+
+        # created_datetime
+        processed_issue.append(parse(issue.created_at))
+
+        # updated_datetime
+        processed_issue.append(parse(issue.updated_at))
+
+        latest_comment_body = None
+        latest_comment_created_at = None
+        latest_comment_created_by = None
+        if issue.comments:  # defines number of comments
+            # get last comment info
+            comments_url = issue.comments_url
+            comments_data = self.get_paged_content(self._session, comments_url)
+            latest_comment = sorted(comments_data, key=get_created_datetime)[-1]
+            latest_comment_body = latest_comment['body']
+            latest_comment_created_at = parse(latest_comment['created_at'])
+            latest_comment_created_by = latest_comment['user']['login']  # username
+        processed_issue.append(latest_comment_created_at)
+        processed_issue.append(latest_comment_created_by)
+        processed_issue.append(latest_comment_body)
+        issue.latest_comment_created_at = latest_comment_created_at
+        issue.latest_comment_created_by = latest_comment_created_by
+        issue.latest_comment_body = latest_comment_body
+
+        # add position in order to get card priority in column
+        processed_issue.append(None)
+        issue.column_priority = None  # issue priority within the column
+        issue.project_column = column_name  # related project column name
+
+        # add description
+        processed_issue.append(issue.body)
+        issue.simple = processed_issue
+        issue.project_column = column_name
+        issue._project_manager = None
+
+        return issue
 
 
 if __name__ == '__main__':
