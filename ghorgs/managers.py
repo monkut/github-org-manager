@@ -101,7 +101,7 @@ class GithubGraphQLManager:
           createProject(input:{name:"%(name)s", body:"%(body)s", ownerId:"%(owner_id)s", clientMutationId:"%(mutation_id)s"}) {
 
                 project{
-              id,
+              databaseId,
               name,
               url,
               number      
