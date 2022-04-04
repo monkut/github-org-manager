@@ -101,6 +101,7 @@ class GithubGraphQLManager:
           createProject(input:{name:"%(name)s", body:"%(body)s", ownerId:"%(owner_id)s", clientMutationId:"%(mutation_id)s"}) {
 
                 project{
+              id,
               databaseId,
               name,
               url,
@@ -124,8 +125,7 @@ class GithubGraphQLManager:
         responses.append(response)
 
         try:
-            #project_id = response['data']['createProject']['project']['id']
-            project_id = response['data']['createProject']['project']['databaseId']
+            project_id = response['data']['createProject']['project']['id']
         except KeyError as e:
             raise UnexpectedResponseError(e.args)
 

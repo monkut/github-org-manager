@@ -49,7 +49,7 @@ def run_graphql_request(query: str, token: str, raise_on_error: bool=False):
     if response.status_code == 200:
         result = response.json()
         if raise_on_error:
-            if not result['data'] and result['errors']:
+            if 'data' not in result or (not result['data'] and result['errors']):
                 raise GithubGraphQLError(result['errors'])
         return result
     else:
