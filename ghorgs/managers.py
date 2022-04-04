@@ -117,13 +117,15 @@ class GithubGraphQLManager:
         response = run_graphql_request(graphql_mutation,
                                        token=self.token,
                                        raise_on_error=True)
+        logger.info(f"run_graphql_request response={response}")
 
         # {'data': {'createProject': {'project': {'id': '{NODE ID}=', 'name': 'project name', 'url':
         project_url = response['data']['createProject']['project']['url']
         responses.append(response)
 
         try:
-            project_id = response['data']['createProject']['project']['id']
+            #project_id = response['data']['createProject']['project']['id']
+            project_id = response['data']['createProject']['project']['databaseId']
         except KeyError as e:
             raise UnexpectedResponseError(e.args)
 
@@ -175,7 +177,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
     Functions/Tools for managing Github Organization Projects
     """
 
-    def __init__(self, organization: str, token: str=GITHUB_ACCESS_TOKEN):
+    def __init__(self, organization: str, token: str = GITHUB_ACCESS_TOKEN):
         """
         :param organization: Github organization name
         :param token: Github personal access token
