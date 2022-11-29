@@ -5,7 +5,7 @@ This module maintains key class objects for wrapping Github Key Nodes
 import datetime
 import concurrent.futures
 from time import sleep
-from typing import Tuple
+from typing import Tuple, Optional, List
 from functools import lru_cache
 try:
     import ujson as json
@@ -299,8 +299,8 @@ class GithubOrganizationProject(GithubPagedRequestHandler):
             unique_repo_urls.add(issue.repository_url)
         return tuple(unique_repo_urls)
 
-    def issues(self):
-        def process_issue(url, column_name=None, position=None):
+    def issues(self, exclude_columns: Optional[List[str]] = None):
+        def process_issue(url: str, column_name: str = None, position: int = None):
             """
             Retrieve data from the given ISSUE URL and internal COMMENTS URL and return a list of key desired values
             :param url: (str) GITHUB issue url
@@ -396,7 +396,7 @@ class GithubOrganizationProject(GithubPagedRequestHandler):
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
             # submit jobs
             jobs = []
-            for column_data in self.columns():
+            for column_data in self.columns(exclude_columns):
                 column_name = column_data['name']
 
                 # get issues (cards) in column
@@ -417,11 +417,11 @@ class GithubOrganizationProject(GithubPagedRequestHandler):
             for future in concurrent.futures.as_completed(jobs):
                 yield future.result()
 
-    def _clean_url(self, url):
+    def _clean_url(self, url: str):
         schema_index = url.index('http')
         return url[schema_index:]
 
-    def columns(self):
+    def columns(self, exclude_columns: Optional[List[str]] = None):
         """
         get the project columns data
 
@@ -440,7 +440,9 @@ class GithubOrganizationProject(GithubPagedRequestHandler):
                     },
                 ]
         """
+        if not exclude_columns:
+            exclude_columns = []
         # "columns_url":"https://api.github.com/projects/426145/columns",
         url = self._clean_url(self._data['columns_url'])
         columns_data = self.get_paged_content(self._session, url)
-        return columns_data
+        yield from (column_data for column_data in columns_data if column_data["name"] not in exclude_columns)
