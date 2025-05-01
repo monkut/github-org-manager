@@ -36,5 +36,17 @@ setup(
     author='Shane Cousins',
     author_email='shane.cousins@gmail.com',
     description='Github Wrapper for Organization Projects',
-    install_requires=get_package_dependencies_from_pipfile()
+    install_requires=get_package_dependencies_from_pipfile(),
+    classifiers=[
+        "Environment :: Console",
+        "License :: OSI Approved :: The MIT License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ]
 )

@@ -5,7 +5,7 @@ This module maintains key class objects for wrapping Github Key Nodes
 import datetime
 import concurrent.futures
 from time import sleep
-from typing import Tuple, Optional, List
+from typing import Optional
 from functools import lru_cache
 try:
     import ujson as json
@@ -168,7 +168,7 @@ class GithubRepository(BaseJsonClass, GithubPagedRequestHandler):
         data = self.get_paged_content(self._session, normalized_url)
         return data
 
-    def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str = 'open') -> Tuple[int, dict]:
+    def create_milestone(self, title: str, description: str, due_on: datetime.datetime, state: str = 'open') -> tuple[int, dict]:
         """
         Create a github repository milestone
 
@@ -299,7 +299,7 @@ class GithubOrganizationProject(GithubPagedRequestHandler):
             unique_repo_urls.add(issue.repository_url)
         return tuple(unique_repo_urls)
 
-    def issues(self, exclude_columns: Optional[List[str]] = None):
+    def issues(self, exclude_columns: Optional[list[str]] = None):
         def process_issue(url: str, column_name: str = None, position: int = None):
             """
             Retrieve data from the given ISSUE URL and internal COMMENTS URL and return a list of key desired values
@@ -421,7 +421,7 @@ class GithubOrganizationProject(GithubPagedRequestHandler):
         schema_index = url.index('http')
         return url[schema_index:]
 
-    def columns(self, exclude_columns: Optional[List[str]] = None):
+    def columns(self, exclude_columns: Optional[list[str]] = None):
         """
         get the project columns data
 
