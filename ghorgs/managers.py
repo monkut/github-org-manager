@@ -6,7 +6,7 @@ import os
 import json
 import uuid
 import logging
-from typing import Tuple, List, Generator, Optional
+from typing import Generator, Optional
 from functools import lru_cache
 
 import requests
@@ -62,7 +62,7 @@ class GithubGraphQLManager:
             raise UnexpectedResponseError(e.args)
         return org_id
 
-    def create_organizational_project(self, name: str, description: str, columns: Optional[list]=None) -> Tuple[str, List[object]]:
+    def create_organizational_project(self, name: str, description: str, columns: Optional[list]=None) -> tuple[str, list[object]]:
         """
         Create an Organizational Project in github
 
@@ -135,7 +135,7 @@ class GithubGraphQLManager:
 
         return project_url, responses
 
-    def add_columns(self, project_id: str, columns: List[str]) -> List:
+    def add_columns(self, project_id: str, columns: list[str]) -> list:
         """
         Add column(s) to the given project.
 
@@ -201,7 +201,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
 
         self.org = organization
 
-    def create_organizational_project(self, *args, **kwargs) -> Tuple[str, List[object]]:
+    def create_organizational_project(self, *args, **kwargs) -> tuple[str, list[object]]:
         """
         This method makes organizational project creation available through the Github GraphQL API.
 
@@ -237,7 +237,7 @@ class GithubOrganizationManager(GithubPagedRequestHandler):
         yield from (GithubOrganizationProject(self._session, p) for p in projects_data)
 
     @lru_cache(maxsize=10)
-    def repositories(self, names: List[str]=None) -> Generator[GithubRepository, None, None]:
+    def repositories(self, names: list[str] = None) -> Generator[GithubRepository, None, None]:
         def classify(repository_response: dict) -> GithubRepository:
             """
             Load Github repository API dictionary representation into an internally defined GitRepository Object

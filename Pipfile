@@ -4,11 +4,11 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+black = "*"
+
 
 [packages]
 requests = "*"
 python-dateutil = "*"
 urllib3 = ">=1.25.8"
 
-[requires]
-python_version = "3.7"
